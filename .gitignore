@@ -1,0 +1,29 @@
+# Environments
+.venv/
+venv/
+env/
+
+# Data
+data/raw/
+data/processed/
+
+# MLflow
+mlruns/
+mlflow.db
+mlartifacts/
+src/outputs/
+
+# Model artifacts
+*.pt
+*.ckpt
+
+# Secrets
+.env*
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store

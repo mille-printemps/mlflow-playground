@@ -1,0 +1,25 @@
+model:
+  name: "distilbert-base-uncased"
+  num_labels: 2
+
+data:
+  dataset_name: "stanfordnlp/imdb"
+  train_subset_size: 3000
+  eval_subset_size: 1000
+  max_length: 256
+
+training:
+  output_dir: "./outputs"
+  num_train_epochs: 2
+  per_device_train_batch_size: 16
+  per_device_eval_batch_size: 32
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  logging_steps: 20
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  seed: 42
+
+mlflow:
+  experiment_name: "sentiment-distilbert-v3"
+  tracking_uri: "http://127.0.0.1:5000"
