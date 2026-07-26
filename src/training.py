@@ -82,13 +82,6 @@ def main():
         })
 
         # log the model itself
-        mlflow.transformers.log_model(
-            transformers_model={"model": model, "tokenizer": tokenizer},
-            artifact_path="model",
-            task="text-classification",
-        )
-
-        # log the model itself
         model_info = mlflow.transformers.log_model(
             transformers_model={"model": model, "tokenizer": tokenizer},
             artifact_path="model",
