@@ -3,7 +3,9 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the CPU-only torch wheel first so the CUDA/nvidia-* deps never get pulled in by requirements.txt.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch>=2.2.0" \
+    && pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 

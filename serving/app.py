@@ -6,10 +6,21 @@ from datetime import datetime, timezone
 
 import mlflow
 import mlflow.transformers
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI(title="Sentiment Model Serving")
+
+REQUEST_COUNT = Counter(
+    "predict_requests_total", "Total number of /predict requests", ["status"]
+)
+REQUEST_LATENCY = Histogram(
+    "predict_latency_seconds", "Latency of /predict requests in seconds"
+)
+PREDICTION_LABEL_COUNT = Counter(
+    "predict_labels_total", "Total predictions by label", ["label"]
+)
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 MODEL_NAME = os.getenv("MODEL_NAME", "sentiment-distilbert")
@@ -49,11 +60,24 @@ def health():
     return {"status": "ok", "model": MODEL_NAME, "version": MODEL_STAGE_OR_VERSION}
 
 
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest):
     start_time = time.time()
-    result = model_pipeline(request.text)[0]
-    latency_ms = (time.time() - start_time) * 1000
+    try:
+        result = model_pipeline(request.text)[0]
+    except Exception:
+        REQUEST_COUNT.labels(status="error").inc()
+        raise
+    latency_s = time.time() - start_time
+
+    REQUEST_COUNT.labels(status="success").inc()
+    REQUEST_LATENCY.observe(latency_s)
+    PREDICTION_LABEL_COUNT.labels(label=result["label"]).inc()
 
     log_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -61,7 +85,7 @@ def predict(request: PredictRequest):
         "text_length": len(request.text),
         "predicted_label": result["label"],
         "score": result["score"],
-        "latency_ms": round(latency_ms, 2),
+        "latency_ms": round(latency_s * 1000, 2),
         "model_name": MODEL_NAME,
         "model_version": MODEL_STAGE_OR_VERSION,
     }
