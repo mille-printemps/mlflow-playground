@@ -1,0 +1,37 @@
+services:
+  serving:
+    build: ./serving
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://host.docker.internal:5000
+      MODEL_NAME: sentiment-distilbert
+      MODEL_VERSION: latest
+      PREDICTION_LOG_PATH: /app/logs/predictions.jsonl
+    volumes:
+      - ./serving/logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - serving
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
