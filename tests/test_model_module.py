@@ -8,20 +8,26 @@ CONFIG = {"model": {"name": "distilbert-base-uncased", "num_labels": 2}}
 
 
 def test_get_device_prefers_mps_when_available():
-    with patch.object(torch.backends.mps, "is_available", return_value=True), \
-         patch.object(torch.cuda, "is_available", return_value=True):
+    with (
+        patch.object(torch.backends.mps, "is_available", return_value=True),
+        patch.object(torch.cuda, "is_available", return_value=True),
+    ):
         assert model_module.get_device() == torch.device("mps")
 
 
 def test_get_device_prefers_cuda_over_cpu_when_mps_unavailable():
-    with patch.object(torch.backends.mps, "is_available", return_value=False), \
-         patch.object(torch.cuda, "is_available", return_value=True):
+    with (
+        patch.object(torch.backends.mps, "is_available", return_value=False),
+        patch.object(torch.cuda, "is_available", return_value=True),
+    ):
         assert model_module.get_device() == torch.device("cuda")
 
 
 def test_get_device_falls_back_to_cpu():
-    with patch.object(torch.backends.mps, "is_available", return_value=False), \
-         patch.object(torch.cuda, "is_available", return_value=False):
+    with (
+        patch.object(torch.backends.mps, "is_available", return_value=False),
+        patch.object(torch.cuda, "is_available", return_value=False),
+    ):
         assert model_module.get_device() == torch.device("cpu")
 
 

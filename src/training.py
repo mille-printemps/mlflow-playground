@@ -1,15 +1,15 @@
-import yaml
+import evaluate
 import mlflow
 import numpy as np
+import yaml
 from transformers import Trainer, TrainingArguments
-import evaluate
 
 from data_module import load_and_tokenize
 from model_module import get_device, load_model
 
 
 def load_config(path: str = "../configs/train_config.yaml") -> dict:
-    with open(path, "r") as f:
+    with open(path) as f:
         return yaml.safe_load(f)
 
 
@@ -63,23 +63,27 @@ def main():
 
     with mlflow.start_run():
         # log config as params
-        mlflow.log_params({
-            "model_name": config["model"]["name"],
-            "train_subset_size": config["data"]["train_subset_size"],
-            "epochs": config["training"]["num_train_epochs"],
-            "batch_size": config["training"]["per_device_train_batch_size"],
-            "learning_rate": config["training"]["learning_rate"],
-            "device": str(device),
-        })
+        mlflow.log_params(
+            {
+                "model_name": config["model"]["name"],
+                "train_subset_size": config["data"]["train_subset_size"],
+                "epochs": config["training"]["num_train_epochs"],
+                "batch_size": config["training"]["per_device_train_batch_size"],
+                "learning_rate": config["training"]["learning_rate"],
+                "device": str(device),
+            }
+        )
 
         trainer.train()
 
         eval_results = trainer.evaluate()
-        mlflow.log_metrics({
-            "eval_accuracy": eval_results["eval_accuracy"],
-            "eval_f1": eval_results["eval_f1"],
-            "eval_loss": eval_results["eval_loss"],
-        })
+        mlflow.log_metrics(
+            {
+                "eval_accuracy": eval_results["eval_accuracy"],
+                "eval_f1": eval_results["eval_f1"],
+                "eval_loss": eval_results["eval_loss"],
+            }
+        )
 
         # log the model itself
         model_info = mlflow.transformers.log_model(
@@ -97,7 +101,10 @@ def main():
 
         print(f"Model registered as '{registered_model_name}'")
 
-        print(f"Run complete. Eval accuracy: {eval_results['eval_accuracy']:.4f}, F1: {eval_results['eval_f1']:.4f}")
+        print(
+            f"Run complete. Eval accuracy: {eval_results['eval_accuracy']:.4f}, "
+            f"F1: {eval_results['eval_f1']:.4f}"
+        )
 
 
 if __name__ == "__main__":
