@@ -8,11 +8,15 @@ def load_and_tokenize(config: dict):
 
     dataset = load_dataset(config["data"]["dataset_name"])
 
-    train_subset = dataset["train"].shuffle(seed=config["training"]["seed"]).select(
-        range(config["data"]["train_subset_size"])
+    train_subset = (
+        dataset["train"]
+        .shuffle(seed=config["training"]["seed"])
+        .select(range(config["data"]["train_subset_size"]))
     )
-    eval_subset = dataset["test"].shuffle(seed=config["training"]["seed"]).select(
-        range(config["data"]["eval_subset_size"])
+    eval_subset = (
+        dataset["test"]
+        .shuffle(seed=config["training"]["seed"])
+        .select(range(config["data"]["eval_subset_size"]))
     )
 
     def tokenize_fn(batch):

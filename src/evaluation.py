@@ -13,15 +13,17 @@ LABEL2ID = {"negative": 0, "positive": 1}
 
 
 def load_config(path: str = "../configs/train_config.yaml") -> dict:
-    with open(path, "r") as f:
+    with open(path) as f:
         return yaml.safe_load(f)
 
 
 def load_eval_examples(config: dict):
     """Pull the same eval split/seed used at training time, as raw text (no tokenization)."""
     dataset = load_dataset(config["data"]["dataset_name"])
-    eval_subset = dataset["test"].shuffle(seed=config["training"]["seed"]).select(
-        range(config["data"]["eval_subset_size"])
+    eval_subset = (
+        dataset["test"]
+        .shuffle(seed=config["training"]["seed"])
+        .select(range(config["data"]["eval_subset_size"]))
     )
     return eval_subset["text"], eval_subset["label"]
 
@@ -68,7 +70,7 @@ def measure_model_size(pipeline):
     size_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
     return {
         "num_parameters": num_parameters,
-        "model_size_mb": round(size_bytes / (1024 ** 2), 2),
+        "model_size_mb": round(size_bytes / (1024**2), 2),
     }
 
 
@@ -77,8 +79,12 @@ def main():
     parser.add_argument("--config", default="../configs/train_config.yaml")
     parser.add_argument("--model-name", default="sentiment-distilbert")
     parser.add_argument("--model-version", default="latest")
-    parser.add_argument("--max-eval-samples", type=int, default=200,
-                         help="Cap on examples used for accuracy/F1 (eval set can be large).")
+    parser.add_argument(
+        "--max-eval-samples",
+        type=int,
+        default=200,
+        help="Cap on examples used for accuracy/F1 (eval set can be large).",
+    )
     parser.add_argument("--latency-samples", type=int, default=50)
     args = parser.parse_args()
 
@@ -117,11 +123,13 @@ def main():
     mlflow.set_tracking_uri(config["mlflow"]["tracking_uri"])
     mlflow.set_experiment(config["mlflow"]["experiment_name"])
     with mlflow.start_run(run_name=f"eval-{args.model_name}-{args.model_version}"):
-        mlflow.log_params({
-            "model_name": args.model_name,
-            "model_version": args.model_version,
-            "eval_samples": len(eval_texts),
-        })
+        mlflow.log_params(
+            {
+                "model_name": args.model_name,
+                "model_version": args.model_version,
+                "eval_samples": len(eval_texts),
+            }
+        )
         mlflow.log_metrics(results)
 
     print("\nLogged evaluation run to MLflow.")

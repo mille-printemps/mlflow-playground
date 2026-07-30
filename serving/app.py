@@ -1,26 +1,20 @@
-import os
-import time
 import json
 import logging
-from datetime import datetime, timezone
+import os
+import time
+from datetime import UTC, datetime
 
 import mlflow
 import mlflow.transformers
 from fastapi import FastAPI, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI(title="Sentiment Model Serving")
 
-REQUEST_COUNT = Counter(
-    "predict_requests_total", "Total number of /predict requests", ["status"]
-)
-REQUEST_LATENCY = Histogram(
-    "predict_latency_seconds", "Latency of /predict requests in seconds"
-)
-PREDICTION_LABEL_COUNT = Counter(
-    "predict_labels_total", "Total predictions by label", ["label"]
-)
+REQUEST_COUNT = Counter("predict_requests_total", "Total number of /predict requests", ["status"])
+REQUEST_LATENCY = Histogram("predict_latency_seconds", "Latency of /predict requests in seconds")
+PREDICTION_LABEL_COUNT = Counter("predict_labels_total", "Total predictions by label", ["label"])
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 MODEL_NAME = os.getenv("MODEL_NAME", "sentiment-distilbert")
@@ -80,7 +74,7 @@ def predict(request: PredictRequest):
     PREDICTION_LABEL_COUNT.labels(label=result["label"]).inc()
 
     log_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "text": request.text,
         "text_length": len(request.text),
         "predicted_label": result["label"],

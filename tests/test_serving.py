@@ -18,10 +18,13 @@ def app_module(tmp_path_factory):
         "MODEL_VERSION": "latest",
         "PREDICTION_LOG_PATH": str(log_path),
     }
-    with patch.dict("os.environ", env), \
-         patch("mlflow.transformers.load_model", return_value=MagicMock()):
+    with (
+        patch.dict("os.environ", env),
+        patch("mlflow.transformers.load_model", return_value=MagicMock()),
+    ):
         sys.modules.pop("app", None)
         import app as module
+
         yield module
         sys.modules.pop("app", None)
 
