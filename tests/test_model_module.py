@@ -4,7 +4,13 @@ import torch
 
 import model_module
 
-CONFIG = {"model": {"name": "distilbert-base-uncased", "num_labels": 2}}
+CONFIG = {
+    "model": {
+        "name": "distilbert-base-uncased",
+        "num_labels": 2,
+        "labels": {0: "negative", 1: "positive"},
+    }
+}
 
 
 def test_get_device_prefers_mps_when_available():
@@ -46,4 +52,29 @@ def test_load_model_configures_labels_and_num_labels():
         num_labels=2,
         id2label={0: "negative", 1: "positive"},
         label2id={"negative": 0, "positive": 1},
+    )
+
+
+def test_load_model_supports_arbitrary_label_sets():
+    """The label set is config-driven, not hardcoded to sentiment negative/positive."""
+    config = {
+        "model": {
+            "name": "distilbert-base-uncased",
+            "num_labels": 3,
+            "labels": {0: "billing", 1: "technical", 2: "other"},
+        }
+    }
+    fake_model = MagicMock()
+    with patch.object(
+        model_module.AutoModelForSequenceClassification,
+        "from_pretrained",
+        return_value=fake_model,
+    ) as mock_from_pretrained:
+        model_module.load_model(config)
+
+    mock_from_pretrained.assert_called_once_with(
+        "distilbert-base-uncased",
+        num_labels=3,
+        id2label={0: "billing", 1: "technical", 2: "other"},
+        label2id={"billing": 0, "technical": 1, "other": 2},
     )

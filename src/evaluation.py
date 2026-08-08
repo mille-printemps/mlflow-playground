@@ -9,8 +9,6 @@ import yaml
 from datasets import load_dataset
 from evaluate import load as load_metric
 
-LABEL2ID = {"negative": 0, "positive": 1}
-
 
 def load_config(path: str = "../configs/train_config.yaml") -> dict:
     with open(path) as f:
@@ -35,17 +33,17 @@ def load_registered_pipeline(model_name: str, model_version: str, tracking_uri: 
     return mlflow.transformers.load_model(model_uri, return_type="pipeline")
 
 
-def compute_accuracy_f1(pipeline, texts, labels, max_length: int):
+def compute_accuracy_f1(pipeline, texts, labels, max_length: int, label2id: dict, average: str):
     accuracy_metric = load_metric("accuracy")
     f1_metric = load_metric("f1")
 
     predictions = [
-        LABEL2ID[pipeline(text, truncation=True, max_length=max_length)[0]["label"].lower()]
+        label2id[pipeline(text, truncation=True, max_length=max_length)[0]["label"].lower()]
         for text in texts
     ]
 
     acc = accuracy_metric.compute(predictions=predictions, references=labels)
-    f1 = f1_metric.compute(predictions=predictions, references=labels)
+    f1 = f1_metric.compute(predictions=predictions, references=labels, average=average)
     return acc["accuracy"], f1["f1"]
 
 
@@ -77,7 +75,11 @@ def measure_model_size(pipeline):
 def main():
     parser = argparse.ArgumentParser(description="Evaluate a registered sentiment model.")
     parser.add_argument("--config", default="../configs/train_config.yaml")
-    parser.add_argument("--model-name", default="sentiment-distilbert")
+    parser.add_argument(
+        "--model-name",
+        default=None,
+        help="Defaults to the config's mlflow.registered_model_name.",
+    )
     parser.add_argument("--model-version", default="latest")
     parser.add_argument(
         "--max-eval-samples",
@@ -90,19 +92,24 @@ def main():
 
     config = load_config(args.config)
     max_length = config["data"]["max_length"]
+    model_name = args.model_name or config["mlflow"]["registered_model_name"]
+    label2id = {v.lower(): k for k, v in config["model"]["labels"].items()}
+    f1_average = "binary" if config["model"]["num_labels"] == 2 else "macro"
 
     print(f"Loading eval split from '{config['data']['dataset_name']}'...")
     texts, labels = load_eval_examples(config)
 
     pipeline = load_registered_pipeline(
-        args.model_name, args.model_version, config["mlflow"]["tracking_uri"]
+        model_name, args.model_version, config["mlflow"]["tracking_uri"]
     )
 
     eval_texts = texts[: args.max_eval_samples]
     eval_labels = labels[: args.max_eval_samples]
 
     print(f"Scoring accuracy/F1 on {len(eval_texts)} examples...")
-    accuracy, f1 = compute_accuracy_f1(pipeline, eval_texts, eval_labels, max_length)
+    accuracy, f1 = compute_accuracy_f1(
+        pipeline, eval_texts, eval_labels, max_length, label2id, f1_average
+    )
 
     print(f"Measuring latency over {args.latency_samples} inferences...")
     latency_stats = measure_latency(pipeline, texts, max_length, args.latency_samples)
@@ -122,10 +129,10 @@ def main():
 
     mlflow.set_tracking_uri(config["mlflow"]["tracking_uri"])
     mlflow.set_experiment(config["mlflow"]["experiment_name"])
-    with mlflow.start_run(run_name=f"eval-{args.model_name}-{args.model_version}"):
+    with mlflow.start_run(run_name=f"eval-{model_name}-{args.model_version}"):
         mlflow.log_params(
             {
-                "model_name": args.model_name,
+                "model_name": model_name,
                 "model_version": args.model_version,
                 "eval_samples": len(eval_texts),
             }
