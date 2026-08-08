@@ -1,6 +1,9 @@
 model:
   name: "distilbert-base-uncased"
   num_labels: 2
+  labels:
+    0: "negative"
+    1: "positive"
 
 data:
   dataset_name: "stanfordnlp/imdb"
@@ -23,3 +26,4 @@ training:
 mlflow:
   experiment_name: "sentiment-distilbert-v3"
   tracking_uri: "http://127.0.0.1:5000"
+  registered_model_name: "sentiment-distilbert"

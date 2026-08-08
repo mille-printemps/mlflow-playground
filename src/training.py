@@ -1,3 +1,5 @@
+import argparse
+
 import evaluate
 import mlflow
 import numpy as np
@@ -27,7 +29,11 @@ def compute_metrics(eval_pred):
 
 
 def main():
-    config = load_config()
+    parser = argparse.ArgumentParser(description="Train and register a text classification model.")
+    parser.add_argument("--config", default="../configs/train_config.yaml")
+    args = parser.parse_args()
+
+    config = load_config(args.config)
 
     device = get_device()
     print(f"Using device: {device}")
@@ -93,7 +99,7 @@ def main():
         )
 
         # register it in the Model Registry
-        registered_model_name = "sentiment-distilbert"
+        registered_model_name = config["mlflow"]["registered_model_name"]
         mlflow.register_model(
             model_uri=model_info.model_uri,
             name=registered_model_name,

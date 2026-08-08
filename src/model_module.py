@@ -12,8 +12,8 @@ def get_device():
 
 
 def load_model(config: dict):
-    id2label = {0: "negative", 1: "positive"}
-    label2id = {"negative": 0, "positive": 1}
+    id2label = {int(k): v for k, v in config["model"]["labels"].items()}
+    label2id = {v: k for k, v in id2label.items()}
 
     model = AutoModelForSequenceClassification.from_pretrained(
         config["model"]["name"],

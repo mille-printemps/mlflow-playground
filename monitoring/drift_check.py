@@ -2,7 +2,13 @@ import argparse
 import json
 
 import pandas as pd
+import yaml
 from scipy import stats
+
+
+def load_config(path: str = "../configs/train_config.yaml") -> dict:
+    with open(path) as f:
+        return yaml.safe_load(f)
 
 
 def load_prediction_logs(log_path: str) -> pd.DataFrame:
@@ -47,11 +53,14 @@ def main():
     parser = argparse.ArgumentParser(
         description="Check for data drift between training and production text."
     )
+    parser.add_argument("--config", default="../configs/train_config.yaml")
     parser.add_argument("--log-path", default="../serving/logs/predictions.jsonl")
     parser.add_argument(
         "--alpha", type=float, default=0.05, help="Significance threshold for drift detection"
     )
     args = parser.parse_args()
+
+    config = load_config(args.config)
 
     print("Loading production prediction logs...")
     prod_df = load_prediction_logs(args.log_path)
@@ -63,7 +72,10 @@ def main():
         )
 
     print("Loading training data reference distribution...")
-    training_lengths = load_training_text_lengths()
+    training_lengths = load_training_text_lengths(
+        dataset_name=config["data"]["dataset_name"],
+        subset_size=config["data"]["train_subset_size"],
+    )
     production_lengths = prod_df["text_length"]
 
     results = check_drift(training_lengths, production_lengths, alpha=args.alpha)
