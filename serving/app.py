@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import mlflow
 import mlflow.transformers
 from fastapi import FastAPI, Response
+from mlflow.entities import SpanType
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel
 
@@ -22,6 +23,7 @@ MODEL_STAGE_OR_VERSION = os.getenv("MODEL_VERSION", "latest")
 LOG_PATH = os.getenv("PREDICTION_LOG_PATH", "/app/logs/predictions.jsonl")
 
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment("sentiment-serving")
 
 # Set up a dedicated logger that writes structured JSON lines to a file
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
@@ -49,6 +51,15 @@ class PredictResponse(BaseModel):
     score: float
 
 
+@mlflow.trace(name="classify_sentiment", span_type=SpanType.TASK)
+def run_prediction(text: str) -> dict:
+    result = model_pipeline(text)[0]
+    mlflow.update_current_trace(
+        tags={"model_name": MODEL_NAME, "model_version": MODEL_STAGE_OR_VERSION},
+    )
+    return result
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "model": MODEL_NAME, "version": MODEL_STAGE_OR_VERSION}
@@ -63,7 +74,7 @@ def metrics():
 def predict(request: PredictRequest):
     start_time = time.time()
     try:
-        result = model_pipeline(request.text)[0]
+        result = run_prediction(request.text)
     except Exception:
         REQUEST_COUNT.labels(status="error").inc()
         raise

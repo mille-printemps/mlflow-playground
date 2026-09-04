@@ -21,6 +21,9 @@ def app_module(tmp_path_factory):
     with (
         patch.dict("os.environ", env),
         patch("mlflow.transformers.load_model", return_value=MagicMock()),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.trace", side_effect=lambda *a, **kw: lambda f: f),  # Disable tracing
+        patch("mlflow.update_current_trace"),
     ):
         sys.modules.pop("app", None)
         import app as module
